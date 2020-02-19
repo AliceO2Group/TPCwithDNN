@@ -1,0 +1,55 @@
+# If python build in source tree
+tpcwithdnn/validation/*
+build/*
+dist/*
+*.egg-info
+**/__pycache__
+*.png
+
+# Python compiled
+*.pyc
+*.pyd
+*.pyo
+
+# object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# executables
+*.exe
+*.out
+*.app
+
+#input and output data
+machine_learning_hep/data/**/*.root
+machine_learning_hep/D0kINT7HighMultwithJets
+machine_learning_hep/LckINT7HighMultwithJets
+
+dataframes_*
+plots_*
+output_*
+*.json
+*.h5
+
+# editor backups/cached
+*.swp
+*~
+*.vscode
+**/.mypy_cache
+setup.cfg
+
+# macOS
+.DS_Store

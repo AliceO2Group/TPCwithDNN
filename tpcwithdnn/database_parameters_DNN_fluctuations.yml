@@ -1,0 +1,21 @@
+DNN_fluctuations:
+  dirmodel: model
+  dirval: validation
+  dirinput:  /data/tpcml/data
+  grid_phi: 180
+  grid_z: 33
+  grid_r: 33
+  filters: 4
+  pooling: 0
+  batch_size: 8
+  n_channels: 1
+  shuffle: True
+  depth: 4
+  batch_normalization: 0
+  side: 0
+  dropout: 0.0
+  use_scaler: 0
+  distortion_type: 0 #0 is for checking R direction
+  ephocs: 20
+  rangeevent_train: [0,800]
+  rangeevent_test: [801,970]
