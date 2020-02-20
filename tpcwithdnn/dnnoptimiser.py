@@ -1,18 +1,16 @@
 import os
-import time
 from root_numpy import fill_hist
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.externals import joblib
 from keras.optimizers import Adam
 from keras.models import model_from_json
 from ROOT import TH1F, TH2F, TFile # pylint: disable=import-error, no-name-in-module
-from SymmetricPadding3D import SymmetricPadding3D
+from symmetrypadding3d import symmetryPadding3d
 from machine_learning_hep.logger import get_logger
 from fluctuationDataGenerator import fluctuationDataGenerator
-from modelDataCurrentRegressionKerasNoRoot import UNet, GetFluctuation
+from utilitiesdnn import UNet
 
-# pylint: disable=line-too-long, too-many-instance-attributes, too-many-statements
+# pylint: disable=too-many-instance-attributes, too-many-statements
 class DnnOptimiser:
     #Class Attribute
     species = "dnnoptimiser"
@@ -62,6 +60,42 @@ class DnnOptimiser:
                  self.dropout, self.depth, self.batch_normalization,
                  self.use_scaler, self.distortion_type)
 
+    def get_fluctuation(self, indexev):
+        vecZPosFile = self.dirinput + str(0) + '-vecZPos.npy'
+        scMeanFile = self.dirinput + str(indexev) + '-vecMeanSC.npy'
+        scRandomFile = self.dirinput + str(indexev) + '-vecRandomSC.npy'
+        distRMeanFile = self.dirinput + str(indexev) + '-vecMeanDistR.npy'
+        distRRandomFile = self.dirinput + str(indexev) + '-vecRandomDistR.npy'
+        distRPhiMeanFile = self.dirinput + str(indexev) + '-vecMeanDistRPhi.npy'
+        distRPhiRandomFile = self.dirinput + str(indexev) + '-vecRandomDistRPhi.npy'
+        distZMeanFile = self.dirinput + str(indexev) + '-vecMeanDistZ.npy'
+        distZRandomFile = self.dirinput + str(indexev) + '-vecRandomDistZ.npy'
+        vecZPos = np.load(vecZPosFile)
+        vecMeanSC = np.load(scMeanFile)
+        vecRandomSC = np.load(scRandomFile)
+        vecMeanDistR = np.load(distRMeanFile)
+        vecRandomDistR = np.load(distRRandomFile)
+        vecMeanDistRPhi = np.load(distRPhiMeanFile)
+        vecRandomDistRPhi = np.load(distRPhiRandomFile)
+        vecMeanDistZ = np.load(distZMeanFile)
+        vecRandomDistZ = np.load(distZRandomFile)
+        if self.side == 0:
+            vecFluctuationSC = vecMeanSC[vecZPos >= 0] - vecRandomSC[vecZPos >= 0]
+            vecFluctuationDistR = vecMeanDistR[vecZPos >= 0] - vecRandomDistR[vecZPos >= 0]
+            vecFluctuationDistRPhi = vecMeanDistRPhi[vecZPos >= 0] - vecRandomDistRPhi[vecZPos >= 0]
+            vecFluctuationDistZ = vecMeanDistZ[vecZPos >= 0] - vecRandomDistZ[vecZPos >= 0]
+        elif self.side == 1:
+            vecFluctuationSC = vecMeanSC[vecZPos < 0] - vecRandomSC[vecZPos < 0]
+            vecFluctuationDistR = vecMeanDistR[vecZPos < 0] - vecRandomDistR[vecZPos < 0]
+            vecFluctuationDistRPhi = vecMeanDistRPhi[vecZPos < 0] - vecRandomDistRPhi[vecZPos < 0]
+            vecFluctuationDistZ = vecMeanDistZ[vecZPos < 0] - vecRandomDistZ[vecZPos < 0]
+        elif self.side == 2:
+            vecFluctuationSC = vecMeanSC - vecRandomSC
+            vecFluctuationDistR = vecMeanDistR - vecRandomDistR
+            vecFluctuationDistRPhi = vecMeanDistRPhi - vecRandomDistRPhi
+            vecFluctuationDistZ = vecMeanDistZ - vecRandomDistZ
+        return [vecFluctuationSC, vecFluctuationDistR, vecFluctuationDistRPhi, vecFluctuationDistZ]
+
     def train(self):
         partition = {'train': np.arange(self.rangeevent_train[1]),
                      'validation': np.arange(self.rangeevent_test[0], self.rangeevent_test[1])}
@@ -90,79 +124,52 @@ class DnnOptimiser:
         plt.savefig("plot.png")
 
         model_json = model.to_json()
-        with open("%s/modelLocalCurrent%s.json" % (self.dirmodel, self.suffix), "w") as json_file: \
+        with open("%s/model%s.json" % (self.dirmodel, self.suffix), "w") as json_file: \
             json_file.write(model_json)
-        model.save_weights("%s/modelLocalCurrent%s.h5" % (self.dirmodel, self.suffix))
+        model.save_weights("%s/model%s.h5" % (self.dirmodel, self.suffix))
         print("Saved model to disk")
         # list all data in history
 
+    def groupbyindices(self, arrayflat):
+        return arrayflat.reshape(1, self.grid_phi, self.grid_r, self.grid_z, 1)
+
+    # pylint: disable=fixme
     def apply(self):
         print("APPLY")
-        json_file = open("%s/modelLocalCurrent%s.json" % (self.dirmodel, self.suffix), "r")
+        json_file = open("%s/model%s.json" % (self.dirmodel, self.suffix), "r")
         loaded_model_json = json_file.read()
         json_file.close()
-        loaded_model = model_from_json(loaded_model_json, {'SymmetricPadding3D' : SymmetricPadding3D})
-        loaded_model.load_weights("%s/modelLocalCurrent%s.h5" % (self.dirmodel, self.suffix))
+        loaded_model = \
+            model_from_json(loaded_model_json, {'symmetryPadding3d' : symmetryPadding3d})
+        loaded_model.load_weights("%s/model%s.h5" % (self.dirmodel, self.suffix))
         os.chdir(self.dirval)
-        myfile = TFile.Open("output.root", "recreate")
+        myfile = TFile.Open("output%s.root" % self.suffix, "recreate")
         for iexperiment in range(self.rangeevent_test[0], self.rangeevent_test[1]):
             indexev = iexperiment
-            print(str(indexev))
-            [vecFluctuationSC, vecFluctuationDistR, vecFluctuationDistRPhi, vecFluctuationDistZ] = \
-                    GetFluctuation(self.grid_phi, self.grid_r, self.grid_z, indexev)
-            if self.use_scaler > 0:
-                scalerSC = joblib.load(self.dirinput + "scalerSC-" + str(self.use_scaler) + ".save")
-                scalerDistR = joblib.load(self.dirinput + "scalerDistR-" + str(self.use_scaler) + ".save")
-                scalerDistRPhi = joblib.load(self.dirinput + "scalerDistRPhi-" + str(self.use_scaler) + ".save")
-                scalerDistZ = joblib.load(self.dirinput + "scalerDistZ-" + str(self.use_scaler) + ".save")
-                if self.distortion_type == 0:
-                    scalerDist = scalerDistR
-                elif self.distortion_type == 1:
-                    scalerDist = scalerDistRPhi
-                else:
-                    scalerDist = scalerDistZ
-                vecFluctuationSC_scaled = scalerSC.transform(vecFluctuationSC.reshape(1, -1))
-            else:
-                start = time.time()
+            #[vecFluctSC, vecFluctDistR, vecFluctDistRPhi, vecFluctDistZ] = \
+            [vecFluctSC_flata, vecFluctDistR_flata, _, _] = self.get_fluctuation(indexev)
 
-            start = time.time()
-            if self.use_scaler > 0:
-                distortionPredict = loaded_model.predict(vecFluctuationSC_scaled.reshape(1, self.grid_phi, self.grid_r, self.grid_z, 1))
-            else:
-                distortionPredict = loaded_model.predict(vecFluctuationSC.reshape(1, self.grid_phi, self.grid_r, self.grid_z, 1))
-            end = time.time()
-            predictTime = end - start
-            print("Time to predict: " + str(predictTime) + " s")
+            vecFluctSC_group = self.groupbyindices(vecFluctSC_flata)
 
-            if self.distortion_type == 0:
-                distortionNumeric = vecFluctuationDistR
-            elif self.distortion_type == 1:
-                distortionNumeric = vecFluctuationDistRPhi
-            else:
-                distortionNumeric = vecFluctuationDistZ
-            #distorsionPredict = distortionPredict.reshape(1, self.grid_phi, self.grid_r, self.grid_z, -1)
-            if self.use_scaler > 0:
-                distortionPredict = scalerDist.inverse_transform(distortionPredict.reshape(1, -1))
-            residueMean = \
-            np.absolute(distortionNumeric.reshape(1, self.grid_phi, self.grid_r, self.grid_z) - \
-                        distortionPredict.reshape(1, self.grid_phi, self.grid_r, self.grid_z)).mean()
-            residueStd = np.absolute(distortionNumeric.reshape(1, self.grid_phi, self.grid_r, self.grid_z) - \
-                       distortionPredict.reshape(1, self.grid_phi, self.grid_r, self.grid_z)).std()
-            print("residueMean\t" + str(residueMean))
-            print("residueStd\t" + str(residueStd))
+            distortionPredict_group = loaded_model.predict(vecFluctSC_group)
+            distortionPredict_flatm = distortionPredict_group.reshape(-1, 1)
+            distortionPredict_flata = distortionPredict_group.flatten()
 
-            distortionNumeric_flat = distortionNumeric.flatten()
-            distortionPredict_flat = distortionPredict.flatten()
-            deltas = (distortionPredict_flat - distortionNumeric_flat)
+            #FIXME I AM HARDCODING THIS SHIT HERE FIXME PLEASE
+            distortionNumeric_flata = vecFluctDistR_flata
+            distortionNumeric_flatm = distortionNumeric_flata.reshape(-1, 1)
+
+            deltas = (distortionPredict_flata - distortionNumeric_flata)
 
             h_dist = TH2F("hdist_Ev%d" % iexperiment + self.suffix, "", 100, -3, 3, 100, -3, 3)
             h_deltas = TH1F("hdeltas_Ev%d" % iexperiment + self.suffix, "", 1000, -1., 1.)
-            fill_hist(h_dist, np.concatenate((distortionNumeric.reshape(-1, 1), \
-                                             distortionPredict.reshape(-1, 1)), axis=1))
+            fill_hist(h_dist, np.concatenate((distortionNumeric_flatm,
+                                              distortionPredict_flatm), axis=1))
             fill_hist(h_deltas, deltas)
             h_dist.Write()
             h_deltas.Write()
         myfile.Close()
+        print("DONE APPLY")
 
     # pylint: disable=no-self-use
     def gridsearch(self):
