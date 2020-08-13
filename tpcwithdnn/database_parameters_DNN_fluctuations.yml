@@ -1,8 +1,11 @@
 DNN_fluctuations:
   dirmodel: model_new_random
   dirval: validation_new_random
-  dirinput_train: /data/tpcml/data_20200518/bias
-  dirinput_apply: /data/tpcml/data_20200518/nobias
+  dirinput_bias: /data/tpcml/data_20200518/bias
+  dirinput_nobias: /data/tpcml/data_20200518/nobias
+  train_bias: true
+  test_bias: true
+  apply_bias: false
   diroutflattree: /data/tpcml/datagm/flattree
   grid_phi: 90
   grid_z: 17
@@ -12,12 +15,12 @@ DNN_fluctuations:
   opt_train: [1, 1] #first position = meanSC, second = SCfluctuations
   opt_predout: [1, 0, 0] #R, Rphi, z output distorsion predictions
   nameopt_predout: [R, Rphi, z] #R, Rphi, z output distorsion predictions
-  maxrandomfiles_train: 970 #this is the total number of random events generated
-  maxrandomfiles_apply: 760 #this is the total number of random events generated
+  maxrandomfiles: 970 #this is the total number of random events generated
   range_mean_index: [0,26] # min and max index of mean SC configurations 
-  rangeevent_train: [0,4000] #events for training (include a mix of SC config)
-  rangeevent_test: [4001,5000]
-  rangeevent_apply: [5001,10000]
+  train_events: [900, 1800, 3600] # events for training (include a mix of SC config)
+  test_events: [100, 200, 400]
+  apply_events: [6000, 6000, 6000]
+  max_events: 10000 # number of all available events
   use_scaler: 0
   filters: 4
   pooling: 0
