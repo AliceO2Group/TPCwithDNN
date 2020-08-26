@@ -2,7 +2,6 @@
 # pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring
 # pylint: disable=protected-access, too-many-locals
 import os
-from array import array
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -13,7 +12,7 @@ from keras.optimizers import Adam
 from keras.models import model_from_json
 from keras.utils.vis_utils import plot_model
 
-from root_numpy import fill_hist
+from root_numpy import fill_hist # pylint: disable=import-error
 
 from ROOT import TH1F, TH2F, TFile, TCanvas, TLegend, TPaveText, gPad # pylint: disable=import-error, no-name-in-module
 from ROOT import gStyle, kWhite, kBlue, kGreen, kRed, kCyan, kOrange, kMagenta # pylint: disable=import-error, no-name-in-module
