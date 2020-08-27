@@ -9,7 +9,17 @@ from tpcwithdnn.logger import get_logger
 from tpcwithdnn.dnn_optimiser import DnnOptimiser
 from tpcwithdnn.data_validator import DataValidator
 
-# pylint: disable=too-many-locals
+## optionally limit GPU memory usage
+# import tensorflow as tf
+# gpus = tf.config.experimental.list_physical_devices('GPU')
+# if gpus:
+#   try:
+#     for gpu in gpus:
+#       tf.config.experimental.set_memory_growth(gpu, True)
+#   except RuntimeError as e:
+#     print(e)
+
+# pylint: disable=too-many-locals, too-many-branches
 def main():
     """ The global main function """
     logger = get_logger()
