@@ -2,6 +2,7 @@
 main script for doing tpc calibration with dnn
 """
 
+import sys
 import os
 import yaml
 
@@ -15,14 +16,18 @@ from tpcwithdnn.dnn_optimiser import DnnOptimiser
 from tpcwithdnn.data_validator import DataValidator
 
 ## optionally limit GPU memory usage
-# import tensorflow as tf
-# gpus = tf.config.experimental.list_physical_devices('GPU')
-# if gpus:
-#   try:
-#     for gpu in gpus:
-#       tf.config.experimental.set_memory_growth(gpu, True)
-#   except RuntimeError as e:
-#     print(e)
+if os.environ.get('TPCwithDNNSETMEMLIMIT'):
+    import tensorflow as tf
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            tf.config.experimental.set_virtual_device_configuration(gpus[0], \
+                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit= \
+                int(os.environ.get('TPCwithDNNSETMEMLIMIT')))])
+            # for gpu in gpus:
+            #     tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError as e:
+            print(e)
 
 # pylint: disable=too-many-locals, too-many-branches
 def main():
@@ -30,7 +35,13 @@ def main():
     logger = get_logger()
     logger.info("Starting TPC ML...")
 
-    with open("default.yml", 'r') as default_data:
+    if len(sys.argv) == 2:
+        default_file_name = sys.argv[1]
+        print("Using user specified steering options file: %s" % default_file_name)
+    else:
+        default_file_name = "default.yml"
+
+    with open(default_file_name, 'r') as default_data:
         default = yaml.safe_load(default_data)
     case = default["case"]
     with open("database_parameters_%s.yml" % case, 'r') as parameters_data:
@@ -84,8 +95,8 @@ def main():
         ranges = {"train": [0, train_events],
                   "test": [train_events, train_events + test_events],
                   "apply": [train_events + test_events, total_events]}
-        myopt.set_ranges(ranges, total_events)
-        mydataval.set_ranges(ranges, total_events)
+        myopt.set_ranges(ranges, total_events, train_events, test_events, apply_events)
+        mydataval.set_ranges(ranges, total_events, train_events, test_events, apply_events)
 
         if default["dotrain"] is True:
             myopt.train()
@@ -95,12 +106,22 @@ def main():
             myopt.plot()
         if default["dogrid"] is True:
             myopt.gridsearch()
+        if default["docreatevaldata"] is True:
+            mydataval.create_data()
+        if default["docreatepdfmaps"] is True:
+            mydataval.create_nd_histograms()
+            mydataval.create_pdf_maps()
+            mydataval.merge_pdf_maps()
+        if default["docreatepdfmapforvariable"] is True:
+            mydataval.create_nd_histogram(db_parameters[case]["pdf_map_var"], \
+                                          db_parameters[case]["pdf_map_mean_id"])
+            mydataval.create_pdf_map(db_parameters[case]["pdf_map_var"], \
+                                     db_parameters[case]["pdf_map_mean_id"])
+        if default["domergepdfmaps"] is True:
+            mydataval.merge_pdf_maps()
 
     if default["doprofile"] is True:
         myopt.draw_profile(all_events_counts)
-
-    if default["docreatevaldata"] is True:
-        mydataval.create_data()
 
     logger.info("Program finished.")
 

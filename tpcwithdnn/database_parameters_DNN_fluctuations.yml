@@ -7,8 +7,11 @@ DNN_fluctuations:
   test_bias: true
   apply_bias: false
   diroutflattree: trees
+  dirouthistograms: histograms
   tree_events: 20 # Number of events for validation (random events for nd_validation)
   validate_model: true
+  pdf_map_var: flucSC
+  pdf_map_mean_id: 0
   grid_phi: 90
   grid_z: 17
   grid_r: 17
@@ -16,9 +19,9 @@ DNN_fluctuations:
   selopt_output: 0 # 0 is use to predict distorsions only for positive z-values
   opt_train: [1, 1] #first position = meanSC, second = SCfluctuations
   opt_predout: [1, 0, 0] #R, Rphi, z output distorsion predictions
-  nameopt_predout: [R, Rphi, z] #R, Rphi, z output distorsion predictions
+  nameopt_predout: [R, RPhi, Z] #R, RPhi, Z output distorsion predictions
   maxrandomfiles: 970 #this is the total number of random events generated
-  range_mean_index: [0,26] # min and max index of mean SC configurations 
+  range_mean_index: [0,26] # min and max index of mean SC configurations
   train_events: [900] # events for training (include a mix of SC config)
   test_events: [100]
   apply_events: [6000]
