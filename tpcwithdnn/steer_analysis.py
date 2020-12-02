@@ -29,7 +29,7 @@ if os.environ.get('TPCwithDNNSETMEMLIMIT'):
         except RuntimeError as e:
             print(e)
 
-# pylint: disable=too-many-locals, too-many-branches
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def main():
     """ The global main function """
     logger = get_logger()
@@ -117,6 +117,10 @@ def main():
                                           db_parameters[case]["pdf_map_mean_id"])
             mydataval.create_pdf_map(db_parameters[case]["pdf_map_var"], \
                                      db_parameters[case]["pdf_map_mean_id"])
+        if default["docreatepdfmapformeanid"] is True:
+            mydataval.create_nd_histograms_meanid(db_parameters[case]["pdf_map_mean_id"])
+            mydataval.create_pdf_maps_meanid(db_parameters[case]["pdf_map_mean_id"])
+            mydataval.merge_pdf_maps_meanid(db_parameters[case]["pdf_map_mean_id"])
         if default["domergepdfmaps"] is True:
             mydataval.merge_pdf_maps()
 
