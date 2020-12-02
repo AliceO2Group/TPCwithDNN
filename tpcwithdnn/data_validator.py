@@ -372,14 +372,19 @@ class DataValidator:
             self.create_pdf_maps_meanid(mean_id)
 
 
-    def merge_pdf_maps(self):
+    def merge_pdf_maps(self, mean_ids=None):
         """
         Merge pdf maps for different variables into one file
         """
         self.logger.info("DataValidator::merge_pdf_maps")
 
+        if mean_ids is None:
+            mean_ids = [0, 9, 18]
+        mean_ids_to_factors = {0: 1.0, 9: 1.1, 18: 0.9}
+        mean_factors = [mean_ids_to_factors[mean_id] for mean_id in mean_ids]
+
         df_merged = pd.DataFrame()
-        for mean_factor in [1.0, 1.1, 0.9]:
+        for mean_factor in mean_factors:
             input_file_name_0 = "%s/%s/pdfmap_flucSC_mean%.1f_nEv%d.root" \
                 % (self.diroutflattree, self.suffix, mean_factor, self.train_events)
             df = read_root(input_file_name_0, columns="*Bin*")
@@ -397,3 +402,13 @@ class DataValidator:
             % (self.diroutflattree, self.suffix, self.train_events)
         df_merged.to_root(output_file_name, key='pdfmaps', mode='w', store_index=False)
         self.logger.info("Pdf maps written to %s.", output_file_name)
+
+    def merge_pdf_maps_meanid(self, mean_id):
+        """
+        Merge pdf maps for given mean id
+        mean_id: index of mean map. Only 0 (factor=1.0), 9 (factor=1.1) and 18 (factor=0.9) working.
+        """
+        if mean_id not in (0, 9, 18):
+            self.logger.info("Code implementation only designed for mean ids 0, 9, 18. Exiting...")
+            sys.exit()
+        self.merge_pdf_maps([mean_id])
