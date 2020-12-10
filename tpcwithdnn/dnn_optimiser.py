@@ -2,6 +2,7 @@
 # pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring
 # pylint: disable=protected-access, too-many-locals
 import os
+import datetime
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -13,7 +14,6 @@ from tensorflow.keras.models import model_from_json
 from tensorflow.keras.utils import plot_model
 
 from root_numpy import fill_hist # pylint: disable=import-error
-
 from ROOT import TH1F, TH2F, TFile, TCanvas, TLegend, TPaveText, gPad # pylint: disable=import-error, no-name-in-module
 from ROOT import gStyle, kWhite, kBlue, kGreen, kRed, kCyan, kOrange, kMagenta # pylint: disable=import-error, no-name-in-module
 from ROOT import gROOT  # pylint: disable=import-error, no-name-in-module
@@ -373,12 +373,12 @@ class DnnOptimiser:
         frame.GetYaxis().SetTitleOffset(1.5)
         frame.GetXaxis().CenterTitle(True)
         frame.GetYaxis().CenterTitle(True)
-        frame.GetXaxis().SetTitleSize(0.035)
-        frame.GetYaxis().SetTitleSize(0.035)
-        frame.GetXaxis().SetLabelSize(0.035)
-        frame.GetYaxis().SetLabelSize(0.035)
+        frame.GetXaxis().SetTitleSize(0.03)
+        frame.GetYaxis().SetTitleSize(0.03)
+        frame.GetXaxis().SetLabelSize(0.03)
+        frame.GetYaxis().SetLabelSize(0.03)
 
-        leg = TLegend(0.3, 0.65, 0.65, 0.8)
+        leg = TLegend(0.6, 0.7, 0.9, 0.9)
         leg.SetBorderSize(0)
         leg.SetTextSize(0.03)
 
@@ -415,12 +415,11 @@ class DnnOptimiser:
     def draw_multievent_hist(self, events_counts, func_label, hist_name, source_hist):
         gStyle.SetOptStat(0)
         gStyle.SetOptTitle(0)
-
+        date = datetime.date.today().strftime("%Y%m%d")
         file_formats = ["pdf"]
         # file_formats = ["png", "eps", "pdf"]
         var_labels = ["dr", "rd#varphi", "dz"]
         colors = [kBlue+1, kGreen+2, kRed+1, kCyan+2, kOrange+7, kMagenta+2]
-
         for iname, opt in enumerate(self.opt_predout):
             if opt == 1:
                 opt_name = self.nameopt_predout[iname]
@@ -442,22 +441,51 @@ class DnnOptimiser:
                     hist.SetMarkerStyle(20)
                     hist.SetMarkerColor(colors[i])
                     hist.SetLineColor(colors[i])
-
                     # train_events_k = train_events / 1000
                     leg.AddEntry(hist, "N_{ev}^{training} = %d" % train_events, "LP")
+
+                    if "mean" in func_label and "std" in func_label:
+                        hist.Delete("C")
+                        leg.DeleteEntry()
+                        hist_mean = root_file.Get("%s_all_events_%s" % \
+                                (self.profile_name, self.suffix))
+                        hist_stddev = root_file.Get("%s_all_events_%s" % \
+                                (self.h_std_dev_name, self.suffix))
+                        hist_mean.SetDirectory(0)
+                        hist_stddev.SetDirectory(0)
+                        hist = hist_mean.ProjectionX("hist_meanSD")
+                        hist.Reset()
+                        hist.Sumw2()
+                        hist.SetDirectory(0)
+                        nbin = hist_mean.GetNbinsX()
+                        for ibin in range(0,nbin):
+                            hist.SetBinContent(ibin+1,hist_mean.GetBinContent(ibin+1))
+                            hist.SetBinError(ibin+1,hist_stddev.GetBinContent(ibin+1))
+
+                        hist.SetMarkerStyle(20)
+                        hist.SetMarkerColor(colors[i])
+                        hist.SetLineColor(colors[i])
+                        hist.SetFillColor(colors[i])
+                        hist.SetFillStyle(3001)
+                        hist.Draw("sameE2")
+                        # train_events_k = train_events / 1000
+                        leg.AddEntry(hist, "N_{ev}^{training} = %d" % train_events, "FP")
+
                     root_file.Close()
 
                 leg.Draw()
                 self.add_desc_to_canvas()
-                self.save_canvas(canvas, frame, "plots/20200803", hist_name, file_formats)
-
+                self.save_canvas(canvas, frame, "plots/{0}".format(date), hist_name, file_formats)
 
     def draw_profile(self, events_counts):
         self.draw_multievent_hist(events_counts, "mean", "profile", self.profile_name)
 
-
     def draw_std_dev(self, events_counts):
         self.draw_multievent_hist(events_counts, "std dev", "std_dev", self.h_std_dev_name)
+
+    def draw_mean_std_dev(self, events_counts):
+        self.draw_multievent_hist(events_counts, "mean #pm std.dev.", "mean_std_dev",
+                self.profile_name)
 
     def set_ranges(self, ranges, total_events, train_events, test_events, apply_events):
         self.total_events = total_events
