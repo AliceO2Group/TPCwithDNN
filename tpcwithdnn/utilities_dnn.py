@@ -6,15 +6,18 @@ from tensorflow.keras.layers import AveragePooling3D, Conv3DTranspose
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Conv3D, MaxPooling3D
+from tensorflow.keras.regularizers import l2
 
 from tpcwithdnn.symmetry_padding_3d import SymmetryPadding3d
 
 #https://github.com/mimrtl/DeepRad-Tools/blob/master/Examples/Unet.py
 def conv_block(m, dim, activation, batchnorm, residual, dropout=0):
-    n = Conv3D(dim, 3, activation=activation, padding='same', kernel_initializer="normal")(m)
+    n = Conv3D(dim, 3, activation=activation, padding='same',
+               kernel_initializer="normal", kernel_regularizer=l2(0.001))(m)
     n = BatchNormalization()(n) if batchnorm else n
     n = Dropout(dropout)(n) if dropout else n
-    n = Conv3D(dim, 3, activation=activation, padding='same', kernel_initializer="normal")(n)
+    n = Conv3D(dim, 3, activation=activation, padding='same',
+               kernel_initializer="normal", kernel_regularizer=l2(0.001))(n)
     n = BatchNormalization()(n) if batchnorm else n
     return concatenate([m, n]) if residual else n
 
@@ -27,7 +30,7 @@ def level_block(m, dim, depth, inc_rate, activation, dropout, batchnorm, pool_ty
         elif pool_type == 1:
             m = AveragePooling3D(pool_size=(2, 2, 2))(n)
         else:
-            Conv3D(dim, 3, strides=2, padding='same')(n)
+            Conv3D(dim, 3, strides=2, padding='same', kernel_regularizer=l2(0.001))(n)
 
         m = level_block(m, int(inc_rate*dim), depth-1, inc_rate, activation, dropout, batchnorm,
                         pool_type, upconv, residual)
@@ -44,7 +47,7 @@ def level_block(m, dim, depth, inc_rate, activation, dropout, batchnorm, pool_ty
                 m = SymmetryPadding3d(padding=padding, mode="CONSTANT")(m)
         else:
             m = Conv3DTranspose(dim, 3, strides=2, activation=activation,
-                                padding='same')(m)
+                                padding='same', kernel_regularizer=l2(0.001))(m)
         n = concatenate([n, m])
         m = conv_block(n, dim, activation, batchnorm, residual)
     else:
@@ -56,7 +59,8 @@ def u_net(input_shape, start_channels=4, depth=4, inc_rate=2.0, activation="relu
     i = Input(shape=input_shape)
     output = level_block(i, start_channels, depth, inc_rate, activation, dropout, batchnorm,
                          pool_type, upconv, residual)
-    output = Conv3D(1, 1, activation="linear", padding="same", kernel_initializer="normal")(output)
+    output = Conv3D(1, 1, activation="linear", padding="same",
+                    kernel_initializer="normal", kernel_regularizer=l2(0.001))(output)
     return Model(inputs=i, outputs=output)
 
 #pylint:disable=unused-argument
