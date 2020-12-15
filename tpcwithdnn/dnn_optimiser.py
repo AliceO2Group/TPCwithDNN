@@ -3,6 +3,7 @@
 # pylint: disable=protected-access, too-many-locals
 import os
 import datetime
+import random
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -128,6 +129,8 @@ class DnnOptimiser:
         self.train_events = 0
         self.test_events = 0
         self.apply_events = 0
+
+        random.seed(12345)
 
         gROOT.SetStyle("Plain")
         gROOT.SetBatch()
@@ -416,6 +419,7 @@ class DnnOptimiser:
         gStyle.SetOptStat(0)
         gStyle.SetOptTitle(0)
         date = datetime.date.today().strftime("%Y%m%d")
+
         file_formats = ["pdf"]
         # file_formats = ["png", "eps", "pdf"]
         var_labels = ["dr", "rd#varphi", "dz"]
@@ -495,4 +499,11 @@ class DnnOptimiser:
 
         self.indices_events_means, self.partition = get_event_mean_indices(
             self.maxrandomfiles, self.range_mean_index, ranges)
+
+        for part in self.partition:
+            events_inds = np.array(self.partition[part])
+            events_file = "%s/events_%s_%s_nEv%d.csv" % \
+                          (self.dirmodel, part, self.suffix, self.train_events)
+            np.savetxt(events_file, events_inds, delimiter=",", fmt="%d")
+
         self.logger.info("Processing %d events", self.total_events)
